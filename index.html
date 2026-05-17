@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>情侣99件事</title>
+<link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+<div id="app"></div>
+<div id="modalBackdrop" class="modal-backdrop" onclick="backdropClose(event)"><div id="modal" class="modal"></div></div>
+<div id="egg" class="egg"></div>
+<div id="toastWrap" class="toast-wrap"></div>
+
+<script>
+window.COUPLE_LOCAL_USERS = [
+  { role: "wang", name: "小王同学", password: "20040624", avatar: "assets/avatars/wang.webp" },
+  { role: "han", name: "小韩同学", password: "20040519", avatar: "assets/avatars/han.webp" }
+];
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
+<script src="./src/app.js"></script>
+</body>
+</html>
