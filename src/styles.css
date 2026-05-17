@@ -43,3 +43,25 @@ button,input,textarea,select{font:inherit}button{border:0;cursor:pointer;-webkit
   .calendar-scroll::-webkit-scrollbar{height:6px}
   .calendar-scroll::-webkit-scrollbar-thumb{background:#f4bfd5;border-radius:999px}
 }
+
+/* 图片查看器 */
+.thumb img{cursor:zoom-in}
+.photo-lightbox{position:fixed;inset:0;z-index:260;display:none;align-items:center;justify-content:center;background:rgba(28,12,22,.86);backdrop-filter:blur(8px);padding:14px}
+.photo-lightbox.show{display:flex}
+.photo-stage{width:min(980px,100%);height:min(78vh,760px);display:grid;place-items:center;position:relative}
+.photo-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:22px;box-shadow:0 24px 80px rgba(0,0,0,.35);background:#fff}
+.photo-close,.photo-nav,.photo-delete{position:absolute;border-radius:999px;background:rgba(255,255,255,.92);color:var(--text);border:1px solid rgba(255,255,255,.7);box-shadow:0 12px 30px rgba(0,0,0,.18);font-weight:900}
+.photo-close{right:10px;top:10px;width:42px;height:42px}
+.photo-delete{right:62px;top:10px;min-height:42px;padding:0 14px;color:#d64269}
+.photo-nav{top:50%;transform:translateY(-50%);width:46px;height:46px;font-size:24px}
+.photo-prev{left:10px}.photo-next{right:10px}
+.photo-count{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.7);border-radius:999px;padding:8px 13px;font-size:13px;font-weight:850;color:var(--text)}
+.photo-hint{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.9);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:12px;font-weight:800}
+@media(max-width:640px){
+  .photo-lightbox{padding:8px}
+  .photo-stage{height:82vh}
+  .photo-stage img{border-radius:18px}
+  .photo-nav{width:42px;height:42px}
+  .photo-hint{display:none}
+  .photo-delete{right:56px}
+}

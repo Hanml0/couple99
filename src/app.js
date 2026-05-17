@@ -18,6 +18,10 @@ let filters = { status:'all', author:'all', category:'all', keyword:'' };
 let filtersOpen = false;
 let cal = new Date(); cal.setDate(1);
 let hiddenClicks = 0;
+let lightboxImages = [];
+let lightboxIndex = 0;
+let lightboxWishId = '';
+let lightboxTouchX = 0;
 
 init();
 
@@ -88,7 +92,7 @@ async function loadAll(){
     sb.from('couple_wish_records').select('*').order('created_at'),
     sb.from('couple_wish_images').select('*').order('created_at'),
     sb.from('couple_daily_entries').select('*').order('day'),
-    sb.from('couple_activities').select('*').order('created_at', { ascending:false }).limit(120),
+    sb.from('couple_activities').select('*').order('created_at', { ascending:false }).limit(1000),
     sb.from('couple_app_state').select('*')
   ]);
   for(const r of [wishes,messages,records,images,daily,activities,appState]){
@@ -166,7 +170,7 @@ function home(){
     <section class="card"><div class="section-title"><h2>今日状态</h2><span class="badge">${d}</span></div><p class="hint">用 5 个字以内，给今天留一个小小标记。保存后也可以随时修改。</p><input id="todayStatus" class="input" maxlength="5" placeholder="5个字以内" value="${esc(daMine?.status_text||'')}"><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${STATUS_TIPS.map(s=>`<button class="chip" onclick="document.getElementById('todayStatus').value='${s}'">${s}</button>`).join('')}</div><button class="btn full" style="margin-top:10px" onclick="saveStatus()">${daMine?.status_text?'修改今日状态':'保存今日状态'}</button>${daOther?.status_text?`<div class="message"><b>${esc(roleName(otherRole()))} 的状态</b><p>${esc(daOther.status_text)}</p></div>`:`<p class="hint">TA 今天还没有标记状态。</p>`}</section>
     <section class="card"><div class="section-title"><h2>今日情侣问题</h2><span class="badge">今日一问</span></div><p><b>${esc(q)}</b></p><textarea id="todayAnswer" class="textarea" placeholder="写下今天想说的话">${esc(daMine?.answer||'')}</textarea><button class="btn full" style="margin-top:10px" onclick="saveQuestion()">${daMine?.answer?'修改今日回答':'保存今日回答'}</button>${daOther?.answer?`<div class="message"><b>${esc(roleName(otherRole()))} 的回答</b><p>${esc(daOther.answer)}</p></div>`:`<p class="hint">TA 今天还没有回答。</p>`}</section>
     <section class="card"><div class="section-title"><h2>今日挑战</h2><button class="btn small" onclick="randomWish()">抽一件</button></div><div id="challengeBox" class="empty-state">点击抽一件，让今天有个小目标。</div></section>
-    <section class="card activity-card"><div class="section-title"><h2>动态小窗</h2><span class="badge">${state.activities.length}</span></div><div class="list activity-scroll">${state.activities.slice(0,60).map(chat).join('')||'<div class="empty-state">还没有动态。</div>'}</div></section>
+    <section class="card activity-card"><div class="section-title"><h2>今日动态</h2><span class="badge">${activitiesForDay(d).length}</span></div><div class="list activity-scroll">${activitiesForDay(d).map(chat).join('')||'<div class="empty-state">今天还没有新的互动。</div>'}</div><p class="hint" style="margin:10px 2px 0">以前的互动可以在日历里点击对应日期查看。</p></section>
     <section class="card full-row" style="grid-column:1/-1"><div class="section-title"><h2>最近心愿</h2><button class="btn small secondary" onclick="tab='grid';render()">去99格</button></div><div class="grid2">${recent.map(w=>smallWish(w)).join('')||'<div class="empty-state">先写下第一件想一起做的事吧。</div>'}</div></section>
   </div>`;
 }
@@ -260,7 +264,7 @@ function showEdit(w,isNew=false){
   <div class="field t-single"><label>计划日期</label><input id="date" class="input" type="date" value="${esc(w.date)}"></div><div class="field t-range"><label>开始日期</label><input id="startDate" class="input" type="date" value="${esc(w.startDate)}"></div><div class="field t-range"><label>结束日期</label><input id="endDate" class="input" type="date" value="${esc(w.endDate)}"></div><div class="field t-deadline"><label>截止日期</label><input id="deadline" class="input" type="date" value="${esc(w.deadline)}"></div>
   <label class="switch-line full-row"><input id="surpriseEnabled" type="checkbox" ${w.surprise?.enabled?'checked':''} onchange="refreshSurprise()"><span>设置为惊喜盒子</span></label>
   <div id="surpriseBox" class="full-row" style="display:none"><div class="field"><label>解锁方式</label><select id="surpriseType" class="select" onchange="refreshSurprise()"><option value="password" ${w.surprise?.type==='password'?'selected':''}>暗号解锁</option><option value="date" ${w.surprise?.type==='date'?'selected':''}>定时解锁</option><option value="both" ${w.surprise?.type==='both'?'selected':''}>双方确认</option></select></div><div class="field s-password"><label>暗号</label><input id="spass" class="input" value="${esc(w.surprise?.password||'')}"></div><div class="field s-password"><label>提示</label><input id="shint" class="input" value="${esc(w.surprise?.hint||'')}"></div><div class="field s-date"><label>解锁时间</label><input id="unlockAt" class="input" type="datetime-local" value="${toLocal(w.surprise?.unlockAt)}"></div></div></div>
-  <div class="divider"></div><h3>照片</h3><div class="image-list">${imgs.map(im=>`<div class="thumb"><img src="${im.src}"><button onclick="removeImage('${im.id}','${im.file_path}')">×</button></div>`).join('')}</div>${w.id?`<input type="file" accept="image/*" multiple onchange="uploadImages(event,'${w.id}')">`:'<p class="hint">保存心愿后可以上传照片。</p>'}
+  <div class="divider"></div><h3>照片</h3><div class="image-list">${imgs.map((im,idx)=>`<div class="thumb"><img loading="lazy" src="${im.src}" onclick="openPhotoViewer('${w.id}',${idx})"><button onclick="event.stopPropagation();removeImage('${im.id}','${w.id}')">×</button></div>`).join('')}</div>${w.id?`<input type="file" accept="image/*" multiple onchange="uploadImages(event,'${w.id}')">`:'<p class="hint">保存心愿后可以上传照片。</p>'}
   <div class="divider"></div><h3>长期/多日记录</h3>${w.id?`<textarea id="recordText" class="textarea" placeholder="例如：Day 1 出发啦、今天完成了一小步……"></textarea><button class="btn small secondary" onclick="addRecord('${w.id}')">添加阶段记录</button>`:'<p class="hint">保存心愿后可以添加阶段记录。</p>'}${recs.map(r=>`<div class="message"><b>${esc(roleName(r.by_role))}</b><p>${esc(r.text)}</p><small>${fmtTime(r.created_at)}</small></div>`).join('')}
   <div class="divider"></div><h3>留言</h3>${msgs.map(m=>renderMessage(m)).join('')}${w.id?`<textarea id="msgText" class="textarea" placeholder="写留言给TA"></textarea><button class="btn small secondary" onclick="addMsg('${w.id}')">发送留言</button>`:'<p class="hint">保存心愿后可以留言。</p>'}
   <div class="divider"></div><h3>完成后的回忆</h3><textarea id="memory" class="textarea" placeholder="这件事完成后，写一句属于你的回忆。">${esc((w.memory||{})[currentRole]||'')}</textarea>
@@ -348,6 +352,7 @@ async function addRecord(wishId){
 async function uploadImages(e,wishId){
   const files=[...e.target.files];
   if(!files.length) return;
+  toast(`正在上传 ${files.length} 张照片…`);
   const bucket = CONFIG.bucket || 'couple-photos';
   for(const file of files){
     const compressed = await compressBlob(file);
@@ -359,7 +364,9 @@ async function uploadImages(e,wishId){
   }
   const w=state.wishes.find(x=>x.id===wishId);
   await logActivity(`${roleName(currentRole)} 给「${w?.title||'心愿'}」上传了照片`);
-  await loadAll(); showEdit(state.wishes.find(x=>x.id===wishId));
+  await loadAll();
+  toast('照片上传完成');
+  showEdit(state.wishes.find(x=>x.id===wishId));
 }
 
 function compressBlob(file){
@@ -368,11 +375,11 @@ function compressBlob(file){
     r.onload=ev=>{
       const im=new Image();
       im.onload=()=>{
-        const max=1400, s=Math.min(1,max/Math.max(im.width,im.height));
+        const max=1100, s=Math.min(1,max/Math.max(im.width,im.height));
         const c=document.createElement('canvas');
-        c.width=im.width*s; c.height=im.height*s;
+        c.width=Math.round(im.width*s); c.height=Math.round(im.height*s);
         c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-        c.toBlob(blob=>res(blob),'image/jpeg',.8);
+        c.toBlob(blob=>res(blob),'image/jpeg',.72);
       };
       im.src=ev.target.result;
     };
@@ -380,13 +387,34 @@ function compressBlob(file){
   });
 }
 
-async function removeImage(id,filePath){
+async function removeImage(imageId,wishId=''){
+  const row = state.images.find(x=>x.id===imageId);
+  if(!row) return toast('没有找到这张照片');
   if(!confirm('删除这张照片吗？')) return;
   const bucket = CONFIG.bucket || 'couple-photos';
-  await sb.storage.from(bucket).remove([filePath]);
-  const { error } = await sb.from('couple_wish_images').delete().eq('id', id);
+  if(row.file_path){
+    const { error: storageError } = await sb.storage.from(bucket).remove([row.file_path]);
+    if(storageError) console.warn('Storage delete warning:', storageError.message);
+  }
+  const { error } = await sb.from('couple_wish_images').delete().eq('id', imageId);
   if(error) return throwAndShow(error);
-  await loadAll(); render();
+  await loadAll();
+  const targetWishId = wishId || row.wish_id;
+  const w = state.wishes.find(x=>x.id===targetWishId);
+  lightboxImages = imagesFor(targetWishId);
+  if(lightboxWishId === targetWishId){
+    if(!lightboxImages.length) closePhotoViewer();
+    else {
+      lightboxIndex = Math.min(lightboxIndex, lightboxImages.length-1);
+      renderPhotoViewer();
+    }
+  }
+  if(document.getElementById('modalBackdrop')?.classList.contains('show') && w){
+    showEdit(w);
+  }else{
+    render();
+  }
+  toast('照片已删除');
 }
 
 function showLocked(w){
@@ -430,6 +458,68 @@ async function confirmUnlock(id){
   w.surprise.unlocked ? showEdit(state.wishes.find(x=>x.id===id)) : showLocked(state.wishes.find(x=>x.id===id));
 }
 
+
+function openPhotoViewer(wishId,index=0){
+  lightboxWishId = wishId;
+  lightboxImages = imagesFor(wishId);
+  if(!lightboxImages.length) return toast('还没有照片');
+  lightboxIndex = Math.max(0, Math.min(index, lightboxImages.length-1));
+  renderPhotoViewer();
+}
+
+function ensurePhotoViewer(){
+  let el = document.getElementById('photoLightbox');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'photoLightbox';
+    el.className = 'photo-lightbox';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function renderPhotoViewer(){
+  const el = ensurePhotoViewer();
+  const img = lightboxImages[lightboxIndex];
+  if(!img){ closePhotoViewer(); return; }
+  el.innerHTML = `<div class="photo-stage" ontouchstart="photoTouchStart(event)" ontouchend="photoTouchEnd(event)">
+    <div class="photo-hint">左右滑动或点击箭头切换照片</div>
+    <button class="photo-close" onclick="closePhotoViewer()">×</button>
+    <button class="photo-delete" onclick="deleteCurrentPhoto()">删除</button>
+    ${lightboxImages.length>1?`<button class="photo-nav photo-prev" onclick="movePhoto(-1)">‹</button><button class="photo-nav photo-next" onclick="movePhoto(1)">›</button>`:''}
+    <img src="${img.src}" alt="照片">
+    <div class="photo-count">${lightboxIndex+1} / ${lightboxImages.length}</div>
+  </div>`;
+  el.classList.add('show');
+}
+
+function closePhotoViewer(){
+  const el = document.getElementById('photoLightbox');
+  if(el) el.classList.remove('show');
+}
+
+function movePhoto(step){
+  if(!lightboxImages.length) return;
+  lightboxIndex = (lightboxIndex + step + lightboxImages.length) % lightboxImages.length;
+  renderPhotoViewer();
+}
+
+function photoTouchStart(e){
+  lightboxTouchX = e.changedTouches?.[0]?.clientX || 0;
+}
+
+function photoTouchEnd(e){
+  const endX = e.changedTouches?.[0]?.clientX || 0;
+  const dx = endX - lightboxTouchX;
+  if(Math.abs(dx) > 45) movePhoto(dx > 0 ? -1 : 1);
+}
+
+async function deleteCurrentPhoto(){
+  const img = lightboxImages[lightboxIndex];
+  if(!img) return;
+  await removeImage(img.id, lightboxWishId || img.wish_id);
+}
+
 function randomWish(){
   const arr=state.wishes.filter(w=>w.status!=='completed'&&!locked(w));
   const b=document.getElementById('challengeBox');
@@ -456,7 +546,7 @@ function dayCell(d,month){
 function openDayDetail(key){
   const items=state.wishes.filter(w=>wishOnDate(w,key));
   const dayEntries=state.daily.filter(x=>x.day===key);
-  const acts=state.activities.filter(a=>(a.created_at||'').slice(0,10)===key);
+  const acts=activitiesForDay(key);
   const q=questionText(key);
   const statusBlock=USERS.map(u=>{
     const d=dayEntries.find(x=>x.by_role===u.role);
@@ -507,6 +597,7 @@ function timeLabel(w){if(w.timeMode==='single')return fmt(w.date);if(w.timeMode=
 function completed(){return state.wishes.filter(w=>w.status==='completed').length}
 function heartScore(){return state.wishes.length*5+completed()*10+state.images.length*5+state.messages.length*2+state.wishes.filter(w=>w.surprise?.unlocked).length*15}
 function dailyFor(day,role){return state.daily.find(x=>x.day===day && x.by_role===role)}
+function activitiesForDay(day){return state.activities.filter(a=>(a.created_at||'').slice(0,10)===day)}
 function otherRole(){return currentRole==='wang'?'han':'wang'}
 function roleName(role){return USERS.find(u=>u.role===role)?.name || 'TA'}
 function avatar(role){const u=USERS.find(x=>x.role===role)||USERS[0];return `<img class="avatar" src="${u.avatar}" alt="${esc(u.name)}">`}
