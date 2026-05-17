@@ -163,8 +163,8 @@ function home(){
     <section class="card stat"><div class="icon">💗</div><div><div class="num">${heartScore()}</div><div class="label">心动值</div></div></section>
     <section class="card stat"><div class="icon">📸</div><div><div class="num">${state.images.length}</div><div class="label">照片</div></div></section>
     <section class="card stat"><div class="icon">💬</div><div><div class="num">${state.messages.length}</div><div class="label">留言</div></div></section>
-    <section class="card"><div class="section-title"><h2>今日状态</h2><span class="badge">${d}</span></div><p class="hint">用 5 个字以内，给今天留一个小小标记。</p>${daMine?.status_text?`<div class="message"><b>我的状态</b><p>${esc(daMine.status_text)}</p></div>`:`<input id="todayStatus" class="input" maxlength="5" placeholder="5个字以内"><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${STATUS_TIPS.map(s=>`<button class="chip" onclick="document.getElementById('todayStatus').value='${s}'">${s}</button>`).join('')}</div><button class="btn full" style="margin-top:10px" onclick="saveStatus()">保存今日状态</button>`}${daOther?.status_text?`<div class="message"><b>${esc(roleName(otherRole()))} 的状态</b><p>${esc(daOther.status_text)}</p></div>`:`<p class="hint">TA 今天还没有标记状态。</p>`}</section>
-    <section class="card"><div class="section-title"><h2>今日情侣问题</h2><span class="badge">今日一问</span></div><p><b>${esc(q)}</b></p>${daMine?.answer?`<div class="message"><b>我的回答</b><p>${esc(daMine.answer)}</p></div>`:`<textarea id="todayAnswer" class="textarea" placeholder="写下今天想说的话"></textarea><button class="btn full" style="margin-top:10px" onclick="saveQuestion()">保存今日回答</button>`}${daOther?.answer?`<div class="message"><b>${esc(roleName(otherRole()))} 的回答</b><p>${esc(daOther.answer)}</p></div>`:`<p class="hint">TA 今天还没有回答。</p>`}</section>
+    <section class="card"><div class="section-title"><h2>今日状态</h2><span class="badge">${d}</span></div><p class="hint">用 5 个字以内，给今天留一个小小标记。保存后也可以随时修改。</p><input id="todayStatus" class="input" maxlength="5" placeholder="5个字以内" value="${esc(daMine?.status_text||'')}"><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${STATUS_TIPS.map(s=>`<button class="chip" onclick="document.getElementById('todayStatus').value='${s}'">${s}</button>`).join('')}</div><button class="btn full" style="margin-top:10px" onclick="saveStatus()">${daMine?.status_text?'修改今日状态':'保存今日状态'}</button>${daOther?.status_text?`<div class="message"><b>${esc(roleName(otherRole()))} 的状态</b><p>${esc(daOther.status_text)}</p></div>`:`<p class="hint">TA 今天还没有标记状态。</p>`}</section>
+    <section class="card"><div class="section-title"><h2>今日情侣问题</h2><span class="badge">今日一问</span></div><p><b>${esc(q)}</b></p><textarea id="todayAnswer" class="textarea" placeholder="写下今天想说的话">${esc(daMine?.answer||'')}</textarea><button class="btn full" style="margin-top:10px" onclick="saveQuestion()">${daMine?.answer?'修改今日回答':'保存今日回答'}</button>${daOther?.answer?`<div class="message"><b>${esc(roleName(otherRole()))} 的回答</b><p>${esc(daOther.answer)}</p></div>`:`<p class="hint">TA 今天还没有回答。</p>`}</section>
     <section class="card"><div class="section-title"><h2>今日挑战</h2><button class="btn small" onclick="randomWish()">抽一件</button></div><div id="challengeBox" class="empty-state">点击抽一件，让今天有个小目标。</div></section>
     <section class="card activity-card"><div class="section-title"><h2>动态小窗</h2><span class="badge">${state.activities.length}</span></div><div class="list activity-scroll">${state.activities.slice(0,60).map(chat).join('')||'<div class="empty-state">还没有动态。</div>'}</div></section>
     <section class="card full-row" style="grid-column:1/-1"><div class="section-title"><h2>最近心愿</h2><button class="btn small secondary" onclick="tab='grid';render()">去99格</button></div><div class="grid2">${recent.map(w=>smallWish(w)).join('')||'<div class="empty-state">先写下第一件想一起做的事吧。</div>'}</div></section>
@@ -173,9 +173,8 @@ function home(){
 
 async function saveStatus(){
   const val = document.getElementById('todayStatus').value.trim().slice(0,5);
-  if(!val) return toast('先写一个状态');
-  await upsertDaily({ status_text: val });
-  await logActivity(`${roleName(currentRole)} 标记了今日状态`);
+  await upsertDaily({ status_text: val || null });
+  await logActivity(`${roleName(currentRole)} ${val?'更新了今日状态':'清空了今日状态'}`);
   await loadAll(); render();
 }
 
@@ -443,14 +442,34 @@ function calendar(){
   const y=cal.getFullYear(),m=cal.getMonth(),first=new Date(y,m,1),start=new Date(first);
   start.setDate(1-((first.getDay()+6)%7));
   const days=Array.from({length:42},(_,i)=>{let d=new Date(start);d.setDate(start.getDate()+i);return d});
-  return `<section class="card"><div class="calendar-head"><button class="btn secondary" onclick="cal.setMonth(cal.getMonth()-1);render()">上个月</button><h2>${y}年${m+1}月</h2><button class="btn secondary" onclick="cal.setMonth(cal.getMonth()+1);render()">下个月</button></div><div class="calendar-grid">${['一','二','三','四','五','六','日'].map(x=>`<div class="day-name">周${x}</div>`).join('')}${days.map(d=>dayCell(d,m)).join('')}</div></section>`;
+  return `<section class="card"><div class="calendar-head"><button class="btn secondary" onclick="cal.setMonth(cal.getMonth()-1);render()">上个月</button><h2>${y}年${m+1}月</h2><button class="btn secondary" onclick="cal.setMonth(cal.getMonth()+1);render()">下个月</button></div><div class="calendar-scroll"><div class="calendar-grid">${['一','二','三','四','五','六','日'].map(x=>`<div class="day-name">周${x}</div>`).join('')}${days.map(d=>dayCell(d,m)).join('')}</div></div><p class="hint" style="margin-top:10px">手机上可左右滑动日历；点击某一天可查看当天心愿、状态、问答和互动。</p></section>`;
 }
 
 function dayCell(d,month){
   const key=d.toISOString().slice(0,10);
   const items=state.wishes.filter(w=>wishOnDate(w,key));
   const note=state.daily.find(x=>x.day===key && x.status_text)?.status_text || '';
-  return `<div class="day ${d.getMonth()!==month?'muted':''} ${key===today()?'today':''}"><b>${d.getDate()}</b>${items.map(w=>`<div class="mini-wish" onclick="openWish(${w.slot})">${locked(w)?'🎁 惊喜':(w.status==='completed'?'✅ ':'💌 ')+esc(w.title)}</div>`).join('')}${!items.length&&note?`<div class="mini-note">${esc(note)}</div>`:''}</div>`;
+  return `<div class="day ${d.getMonth()!==month?'muted':''} ${key===today()?'today':''}" onclick="openDayDetail('${key}')"><b>${d.getDate()}</b>${items.map(w=>`<div class="mini-wish" onclick="event.stopPropagation();openWish(${w.slot})">${locked(w)?'🎁 惊喜':(w.status==='completed'?'✅ ':'💌 ')+esc(w.title)}</div>`).join('')}${!items.length&&note?`<div class="mini-note">${esc(note)}</div>`:''}</div>`;
+}
+
+
+function openDayDetail(key){
+  const items=state.wishes.filter(w=>wishOnDate(w,key));
+  const dayEntries=state.daily.filter(x=>x.day===key);
+  const acts=state.activities.filter(a=>(a.created_at||'').slice(0,10)===key);
+  const q=questionText(key);
+  const statusBlock=USERS.map(u=>{
+    const d=dayEntries.find(x=>x.by_role===u.role);
+    return `<div class="message"><div class="message-top"><span class="message-user">${avatar(u.role)}<span>${esc(u.name)}</span></span><span>${esc(d?.status_text||'未标记')}</span></div>${d?.answer?`<p><b>问答：</b>${esc(d.answer)}</p>`:'<p class="hint">还没有回答今日问题。</p>'}</div>`;
+  }).join('');
+  const wishBlock=items.length?items.map(w=>`<div class="feed" onclick="closeModal();openWish(${w.slot})">${locked(w)?'<div style="font-size:30px">🎁</div>':avatar(w.addedBy)}<div><p><b>${locked(w)?'神秘惊喜盒子':esc(w.title)}</b></p><small>${esc(roleName(w.addedBy))} · ${esc(w.category||'其他')} · ${timeLabel(w)}</small></div></div>`).join(''):'<div class="empty-state">这一天没有安排心愿。</div>';
+  const actBlock=acts.length?acts.map(chat).join(''):'<div class="empty-state">这一天还没有互动记录。</div>';
+  showModal(`<div class="modal-head"><h2>${esc(key)} 的记录</h2><button class="close-btn" onclick="closeModal()">×</button></div>
+    <section><h3>当天心愿</h3><div class="list">${wishBlock}</div></section>
+    <div class="divider"></div>
+    <section><h3>今日状态与情侣问题</h3><p class="hint"><b>今日问题：</b>${esc(q)}</p>${statusBlock}</section>
+    <div class="divider"></div>
+    <section><h3>当天互动</h3><div class="list activity-scroll" style="max-height:260px">${actBlock}</div></section>`);
 }
 
 function wishOnDate(w,k){if(w.timeMode==='single')return w.date===k;if(w.timeMode==='deadline')return w.deadline===k;if(w.timeMode==='range'||w.timeMode==='long')return w.startDate&&w.endDate&&k>=w.startDate&&k<=w.endDate;return false}
